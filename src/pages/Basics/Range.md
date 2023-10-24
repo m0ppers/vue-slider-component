@@ -15,4 +15,8 @@ Parameters that are only valid in range mode
 
 <example :value="example2"></example>
 
+### Limit the distance between the sliders with a custom function
+
+<example :value="example3"></example>
+
 ::: example range :::

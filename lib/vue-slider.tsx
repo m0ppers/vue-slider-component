@@ -15,6 +15,7 @@ import {
   Process,
   TooltipProp,
   TooltipFormatter,
+  RangeFunc,
 } from './typings'
 import VueSliderDot from './vue-slider-dot'
 import VueSliderMark from './vue-slider-mark'
@@ -162,6 +163,9 @@ export default class VueSlider extends Vue {
 
   // Maximum distance between sliders, only in range mode
   @Prop(Number) maxRange?: number
+
+  @Prop({ type: [Function] })
+  rangeFn?: RangeFunc
 
   @Prop({ type: [Boolean, Object, Array, Function], default: false })
   marks?: MarksProp
@@ -341,7 +345,14 @@ export default class VueSlider extends Vue {
   }
 
   get canSort(): boolean {
-    return this.order && !this.minRange && !this.maxRange && !this.fixed && this.enableCross
+    return (
+      this.order &&
+      !this.minRange &&
+      !this.maxRange &&
+      !this.fixed &&
+      this.enableCross &&
+      !this.rangeFn
+    )
   }
 
   isObjectData(data?: Value[] | object[] | DataObject): data is DataObject {
@@ -465,6 +476,7 @@ export default class VueSlider extends Vue {
       interval: this.interval,
       minRange: this.minRange,
       maxRange: this.maxRange,
+      rangeFn: this.rangeFn,
       order: this.order,
       marks: this.sliderMarks,
       included: this.included,

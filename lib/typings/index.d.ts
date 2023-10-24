@@ -75,4 +75,10 @@ export interface Process {
   style?: Styles
 }
 
+export type RangeFunc = (
+  newPos: number,
+  changedIndex: number,
+  positions: number[],
+) => { pos: number; inRange: boolean }
+
 export default VueSlider

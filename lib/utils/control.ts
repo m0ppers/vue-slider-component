@@ -9,6 +9,7 @@ import {
   ProcessOption,
   MarksFunction,
   DotOption,
+  RangeFunc,
 } from '../typings'
 
 // The distance each slider changes
@@ -51,6 +52,7 @@ export default class Control {
   interval: number
   minRange: number
   maxRange: number
+  rangeFn: any
   order: boolean
   marks?: MarksProp
   included?: boolean
@@ -70,6 +72,7 @@ export default class Control {
     order: boolean
     minRange?: number
     maxRange?: number
+    rangeFn?: RangeFunc
     marks?: MarksProp
     included?: boolean
     process?: ProcessProp
@@ -91,14 +94,22 @@ export default class Control {
     if (this.order) {
       this.minRange = options.minRange || 0
       this.maxRange = options.maxRange || 0
+      this.rangeFn = options.rangeFn
       this.enableCross = options.enableCross
       this.fixed = options.fixed
     } else {
-      if (options.minRange || options.maxRange || !options.enableCross || options.fixed) {
+      if (
+        options.minRange ||
+        options.maxRange ||
+        !options.enableCross ||
+        options.fixed ||
+        options.rangeFn
+      ) {
         this.emitError(ERROR_TYPE.ORDER)
       }
       this.minRange = 0
       this.maxRange = 0
+      this.rangeFn = undefined
       this.enableCross = true
       this.fixed = false
     }
@@ -360,6 +371,9 @@ export default class Control {
    * @returns {{ pos: number, inRange: boolean }}
    */
   getValidPos(pos: number, index: number): { pos: number; inRange: boolean } {
+    if (this.rangeFn) {
+      return this.rangeFn(pos, index, this.dotsPos)
+    }
     const range = this.valuePosRange[index]
     let inRange = true
     if (pos < range[0]) {
