@@ -11,24 +11,12 @@
     <!-- rail -->
     <div class="vue-slider-rail" :style="railStyle">
       <!-- process -->
-      <slot
-        name="process"
-        v-for="(item, index) in processArray"
-        v-bind="item"
-      >
-        <div
-          class="vue-slider-process"
-          :key="`process-${index}`"
-          :style="item.style"
-        />
+      <slot name="process" v-for="(item, index) in processArray" v-bind="item">
+        <div class="vue-slider-process" :key="`process-${index}`" :style="item.style" />
       </slot>
       <!-- mark -->
       <div v-if="sliderMarks && control" class="vue-slider-marks">
-        <slot
-          name="mark"
-          v-for="(mark, index) in control.markList"
-          v-bind="mark"
-        >
+        <slot name="mark" v-for="(mark, index) in control.markList" v-bind="mark">
           <vue-slider-mark
             :key="`mark-${index}`"
             :mark="mark"
@@ -118,6 +106,7 @@ import {
   Process,
   TooltipProp,
   TooltipFormatter,
+  RangeFunc,
 } from './typings'
 import { getSize, getPos, getKeyboardHandleFunc, HandleFunction } from './utils'
 import Decimal from './utils/decimal'
@@ -143,7 +132,7 @@ export default defineComponent({
   emits: ['change', 'drag-start', 'dragging', 'drag-end', 'error', 'update:modelValue'],
   data() {
     return {
-      control: null as (Control | null),
+      control: null as Control | null,
       states: new State(SliderState),
       // The width of the component is divided into one hundred, the width of each one.
       scale: 1,
@@ -172,7 +161,7 @@ export default defineComponent({
     // The size of the slider, optional [width, height] | size
     dotSize: {
       type: [Number, Array] as PropType<number | [number, number]>,
-      default: 14 as number
+      default: 14 as number,
     },
 
     // whether or not the slider should be fully contained within its containing element
@@ -181,6 +170,8 @@ export default defineComponent({
     min: { type: Number, default: 0 },
 
     max: { type: Number, default: 100 },
+
+    rangeFn: { type: Function as PropType<RangeFunc> },
 
     interval: { type: Number, default: 1 },
 
@@ -210,9 +201,10 @@ export default defineComponent({
 
     tooltipPlacement: {
       type: [String, Array] as PropType<Position | Position[]>,
-      validator: (val: string | string[]) => (Array.isArray(val) ? val : [val]).every(
-        val => ['top', 'right', 'bottom', 'left'].indexOf(val) > -1,
-      ),
+      validator: (val: string | string[]) =>
+        (Array.isArray(val) ? val : [val]).every(
+          (val) => ['top', 'right', 'bottom', 'left'].indexOf(val) > -1,
+        ),
     },
 
     tooltipFormatter: {
@@ -421,11 +413,18 @@ export default defineComponent({
       return this.duration
     },
     canSort(): boolean {
-      return this.order && !this.minRange && !this.maxRange && !this.fixed && this.enableCross
+      return (
+        this.order &&
+        !this.minRange &&
+        !this.maxRange &&
+        !this.fixed &&
+        this.enableCross &&
+        !this.rangeFn
+      )
     },
     sliderData(): undefined | Value[] {
       if (this.isObjectArrayData(this.data)) {
-        return (this.data as any[]).map(obj => obj[this.dataValue])
+        return (this.data as any[]).map((obj) => obj[this.dataValue])
       } else if (this.isObjectData(this.data)) {
         return Object.keys(this.data)
       } else {
@@ -436,9 +435,9 @@ export default defineComponent({
       if (this.marks) {
         return this.marks
       } else if (this.isObjectArrayData(this.data)) {
-        return val => {
+        return (val) => {
           const mark = { label: val }
-          ;(this.data as any[]).some(obj => {
+          ;(this.data as any[]).some((obj) => {
             if (obj[this.dataValue] === val) {
               mark.label = obj[this.dataLabel]
               return true
@@ -450,16 +449,16 @@ export default defineComponent({
       } else if (this.isObjectData(this.data)) {
         return this.data
       } else {
-        return void 0;
+        return void 0
       }
     },
     sliderTooltipFormatter(): TooltipFormatter | TooltipFormatter[] | undefined {
       if (this.tooltipFormatter) {
         return this.tooltipFormatter
       } else if (this.isObjectArrayData(this.data)) {
-        return val => {
+        return (val) => {
           let tooltipText = '' + val
-          ;(this.data as any[]).some(obj => {
+          ;(this.data as any[]).some((obj) => {
             if (obj[this.dataValue] === val) {
               tooltipText = obj[this.dataLabel]
               return true
@@ -470,9 +469,9 @@ export default defineComponent({
         }
       } else if (this.isObjectData(this.data)) {
         const data = this.data
-        return val => data[val]
+        return (val) => data[val]
       } else {
-        return void 0;
+        return void 0
       }
     },
     // Slider value and component internal value are inconsistent
@@ -495,14 +494,14 @@ export default defineComponent({
       const prevDot = this.dots[this.focusDotIndex - 1]
       const nextDot = this.dots[this.focusDotIndex + 1]
       return [prevDot ? prevDot.pos : -Infinity, nextDot ? nextDot.pos : Infinity]
-    }
+    },
   },
   watch: {
     modelValue() {
       if (this.control! && !this.states.has(SliderState.Drag) && this.isNotSync) {
         this.control!.setValue(this.modelValue)
       }
-    }
+    },
   },
   methods: {
     isObjectData(data?: Value[] | object[] | DataObject): data is DataObject {
@@ -548,6 +547,7 @@ export default defineComponent({
         interval: this.interval,
         minRange: this.minRange,
         maxRange: this.maxRange,
+        rangeFn: this.rangeFn,
         order: this.order,
         marks: this.sliderMarks,
         included: this.included,
@@ -571,7 +571,7 @@ export default defineComponent({
         'adsorb',
         'included',
         'dotOptions',
-      ].forEach(name => {
+      ].forEach((name) => {
         this.$watch(name, (val: any) => {
           if (
             name === 'data' &&
@@ -602,7 +602,9 @@ export default defineComponent({
     },
     syncValueByPos() {
       const values = this.control!.dotsValue
-      if (this.isDiff(values, Array.isArray(this.modelValue) ? this.modelValue : [this.modelValue])) {
+      if (
+        this.isDiff(values, Array.isArray(this.modelValue) ? this.modelValue : [this.modelValue])
+      ) {
         const newValue = values.length === 1 ? values[0] : [...values]
         this.$emit('change', newValue, this.focusDotIndex)
         this.$emit('update:modelValue', newValue)
@@ -740,7 +742,7 @@ export default defineComponent({
     },
     setIndex(index: number | number[]) {
       const value = Array.isArray(index)
-        ? index.map(n => this.control!.getValueByIndex(n))
+        ? index.map((n) => this.control!.getValueByIndex(n))
         : this.control!.getValueByIndex(index)
       this.setValue(value)
     },
@@ -808,12 +810,14 @@ export default defineComponent({
       }
     },
     getPosByEvent(e: MouseEvent | TouchEvent): number {
-      return getPos(e, this.$el, this.isReverse, this.zoom)[this.isHorizontal ? 'x' : 'y'] / this.scale
+      return (
+        getPos(e, this.$el, this.isReverse, this.zoom)[this.isHorizontal ? 'x' : 'y'] / this.scale
+      )
     },
     renderSlot<T>(name: string, data: T, defaultSlot: any): any {
       const scopedSlot = this.$slots[name]
       return scopedSlot ? scopedSlot(data) : defaultSlot
-    }
+    },
   },
   created() {
     this.initControl()
